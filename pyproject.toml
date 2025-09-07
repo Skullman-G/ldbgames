@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "ldb game manager"
 authors = [{name="Ladybugged"}]
 requires-python = ">=3.10"
-dependencies = ["typer", "requests", "tqdm", "vdf"]
+dependencies = ["typer", "requests", "tqdm", "vdf", "psutil"]
 
 [project.scripts]
 ldbgames = "ldbgames.cli:app"

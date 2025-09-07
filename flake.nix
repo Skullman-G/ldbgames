@@ -24,6 +24,7 @@
         requests
         tqdm
         vdf
+        psutil
       ];
 
       pyproject = true;
