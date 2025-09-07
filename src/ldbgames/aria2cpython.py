@@ -48,7 +48,12 @@ def aria2_download(game_id: str, url: str, output_path: str, sha256: str, connec
     with subprocess.Popen(
         command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
     ) as proc:
-        pbar = tqdm(total=100, desc=f"Downloading {game_id}", unit="%")
+        pbar = tqdm(
+            total=100,
+            desc=f"Downloading {game_id}",
+            unit="%",
+            bar_format="{l_bar}\033[92m{bar}\033[0m{r_bar}"
+        )
         for line in proc.stdout:
             match = progress_re.search(line)
             if match:

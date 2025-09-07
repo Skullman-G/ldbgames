@@ -70,7 +70,11 @@ def install(game_id: str):
     extract_path = os.path.join(LOCAL_DIR, game_id)
     with tarfile.open(archive_path) as tar:
         members = tar.getmembers()
-        with tqdm(total=len(members), desc=f"Extracting {game_id}") as progress:
+        with tqdm(
+            total=len(members),
+            desc=f"Extracting {game_id}",
+            bar_format="{l_bar}\033[93m{bar}\033[0m{r_bar}"
+        ) as progress:
             for member in members:
                 tar.extract(member, path=extract_path)
                 progress.update(1)
