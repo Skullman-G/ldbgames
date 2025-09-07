@@ -2,8 +2,19 @@ import subprocess
 from pathlib import Path
 from tqdm import tqdm
 import re
+import hashlib
+import os
+import typer
 
-def aria2_download(game_id: str, url: str, output_path: str, connections: int = 16):
+def calc_sha256(file_path):
+    h = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def aria2_download(game_id: str, url: str, output_path: str, sha256: str, connections: int = 16):
     """
     Download a file using aria2c with tqdm progress bar.
 
@@ -14,6 +25,9 @@ def aria2_download(game_id: str, url: str, output_path: str, connections: int = 
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if os.path.exists(output_path):
+        typer.echo("Archive found. Continuing download...")
 
     command = [
         "aria2c",
@@ -45,3 +59,10 @@ def aria2_download(game_id: str, url: str, output_path: str, connections: int = 
         proc.wait()
         if proc.returncode != 0:
             raise RuntimeError(f"aria2c failed with exit code {proc.returncode}")
+
+    if os.path.exists(output_path):
+        filehash = calc_sha256(output_path)
+        if sha256 and filehash != sha256:
+            typer.echo("Archive checksum mismatch. Redownloading...")
+            os.remove(output_path)
+            aria2_download(game_id, url, output_path, sha256, connections)

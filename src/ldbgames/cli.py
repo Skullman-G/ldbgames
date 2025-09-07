@@ -12,6 +12,7 @@ SERVER_URL = "http://ldbgames.com"
 LOCAL_DIR = os.path.expanduser("~/.local/share/ldbgames")
 os.makedirs(LOCAL_DIR, exist_ok=True)
 
+
 def fetch_games():
     """Fetch the list of games from the server as JSON."""
     r = requests.get(f"{SERVER_URL}/games.json")
@@ -20,12 +21,14 @@ def fetch_games():
         raise typer.Exit(code=1)
     return r.json()
 
+
 @app.command()
 def list():
     """List available games on the server."""
     games = fetch_games()
     for g in games:
         typer.echo(f"{g['id']}: {g['name']} (v{g['version']})")
+
 
 @app.command()
 def steamlink(game_id: str):
@@ -41,6 +44,7 @@ def steamlink(game_id: str):
         exe_path=os.path.join(LOCAL_DIR, game_id, game["binary"]),
         img=game.get("img", None)
     )
+
 
 @app.command()
 def install(game_id: str):
@@ -60,7 +64,7 @@ def install(game_id: str):
     archive_path = os.path.join(LOCAL_DIR, f"{game_id}.tar.gz")
 
     # --- Download with progress bar ---
-    aria2_download(game_id, game["url"], archive_path)
+    aria2_download(game_id, game["url"], archive_path, game["sha256"])
 
     # --- Extract with progress bar ---
     extract_path = os.path.join(LOCAL_DIR, game_id)
@@ -71,6 +75,8 @@ def install(game_id: str):
                 tar.extract(member, path=extract_path)
                 progress.update(1)
 
+    os.remove(archive_path)
+
     typer.echo(f"{game_id} installed successfully!")
 
     add_shortcut(
@@ -78,6 +84,7 @@ def install(game_id: str):
         exe_path=os.path.join(LOCAL_DIR, game_id, game["binary"]),
         img=game.get("img", None)
     )
+
 
 @app.command()
 def run(game_id: str):
