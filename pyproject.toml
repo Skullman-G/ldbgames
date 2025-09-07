@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ldbgames"
+version = "0.1.0"
+description = "ldb game manager"
+authors = [{name="Ladybugged"}]
+requires-python = ">=3.10"
+dependencies = ["typer", "requests", "tqdm", "vdf"]
+
+[project.scripts]
+ldbgames = "ldbgames.cli:app"
