@@ -37,7 +37,8 @@ def steamlink(game_id: str):
     
     add_shortcut(
         name=game["name"],
-        exe_path=os.path.join(LOCAL_DIR, game_id, game["binary"])
+        exe_path=os.path.join(LOCAL_DIR, game_id, game["binary"]),
+        img=game.get("img", None)
     )
 
 @app.command()
@@ -80,7 +81,8 @@ def install(game_id: str):
 
     add_shortcut(
         name=game["name"],
-        exe_path=os.path.join(LOCAL_DIR, game_id, game["binary"])
+        exe_path=os.path.join(LOCAL_DIR, game_id, game["binary"]),
+        img=game.get("img", None)
     )
 
 @app.command()
