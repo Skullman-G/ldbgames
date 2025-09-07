@@ -4,6 +4,7 @@ import os
 import tarfile
 from tqdm import tqdm
 from ldbgames.shortcuts import add_shortcut
+from ldbgames.aria2cpython import aria2_download
 
 app = typer.Typer()
 
@@ -59,14 +60,7 @@ def install(game_id: str):
     archive_path = os.path.join(LOCAL_DIR, f"{game_id}.tar.gz")
 
     # --- Download with progress bar ---
-    total_size = int(r.headers.get("content-length", 0))
-    with open(archive_path, "wb") as f, tqdm(
-        total=total_size, unit="B", unit_scale=True, desc=f"Downloading {game_id}"
-    ) as progress:
-        for chunk in r.iter_content(1024):
-            if chunk:
-                f.write(chunk)
-                progress.update(len(chunk))
+    aria2_download(game_id, game["url"], archive_path)
 
     # --- Extract with progress bar ---
     extract_path = os.path.join(LOCAL_DIR, game_id)

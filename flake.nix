@@ -17,7 +17,12 @@
       version = "0.1.0";
       src = ./.;
 
-      buildInputs = [ python pythonPackages.setuptools ];
+      buildInputs = [
+        python
+        pythonPackages.setuptools
+        pkgs.aria2
+        pkgs.makeWrapper
+      ];
 
       propagatedBuildInputs = with pythonPackages; [
         typer
@@ -28,6 +33,11 @@
       ];
 
       pyproject = true;
+
+      postInstall = ''
+        wrapProgram $out/bin/ldbgames \
+          --prefix PATH : ${pkgs.aria2}/bin
+      '';
     };
 
     apps.${system}.default = {
