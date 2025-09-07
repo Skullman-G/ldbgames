@@ -22,12 +22,43 @@ def fetch_games():
     return r.json()
 
 
+def get_installed_games():
+    """Return a list of installed game IDs (directories in LOCAL_DIR)."""
+    installed = []
+    if not os.path.exists(LOCAL_DIR):
+        return installed
+
+    for entry in os.listdir(LOCAL_DIR):
+        game_path = os.path.join(LOCAL_DIR, entry)
+        if os.path.isdir(game_path):
+            # Check if this directory looks like a game by matching it with server list
+            games = fetch_games()
+            if any(g["id"] == entry for g in games):
+                installed.append(entry)
+    return installed
+
+
 @app.command()
 def list():
     """List available games on the server."""
     games = fetch_games()
     for g in games:
         typer.echo(f"{g['id']}: {g['name']} (v{g['version']})")
+
+
+@app.command()
+def installed():
+    """List installed games."""
+    games = fetch_games()
+    installed_ids = get_installed_games()
+
+    if not installed_ids:
+        typer.echo("No games installed.")
+        return
+
+    for g in games:
+        if g["id"] in installed_ids:
+            typer.echo(f"{g['id']}: {g['name']} (v{g['version']})")
 
 
 @app.command()
