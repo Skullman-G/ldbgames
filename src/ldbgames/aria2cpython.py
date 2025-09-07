@@ -55,8 +55,11 @@ def aria2_download(game_id: str, url: str, output_path: str, sha256: str, connec
                 percent = int(match.group(1))
                 pbar.n = percent
                 pbar.refresh()
-        pbar.close()
         proc.wait()
+        if proc.returncode == 0:
+            pbar.n = 100
+            pbar.refresh()
+        pbar.close()
         if proc.returncode != 0:
             raise RuntimeError(f"aria2c failed with exit code {proc.returncode}")
 
