@@ -13,15 +13,6 @@ LOCAL_DIR = os.path.expanduser("~/.local/share/ldbgames")
 os.makedirs(LOCAL_DIR, exist_ok=True)
 
 
-def fetch_games():
-    """Fetch the list of games from the server as JSON."""
-    r = requests.get(f"{SERVER_URL}/games.json")
-    if r.status_code != 200:
-        typer.echo("Failed to fetch game list.")
-        raise typer.Exit(code=1)
-    return r.json()
-
-
 def get_installed_games():
     """Return a list of installed game IDs (directories in LOCAL_DIR)."""
     installed = []
@@ -31,17 +22,16 @@ def get_installed_games():
     for entry in os.listdir(LOCAL_DIR):
         game_path = os.path.join(LOCAL_DIR, entry)
         if os.path.isdir(game_path):
-            # Check if this directory looks like a game by matching it with server list
-            games = fetch_games()
-            if any(g["id"] == entry for g in games):
-                installed.append(entry)
+            game = requests.get(f"{SERVER_URL}/api/games/{entry}").json()
+            if not game:
+                installed.append(game)
     return installed
 
 
 @app.command()
 def list():
     """List available games on the server."""
-    games = fetch_games()
+    games = requests.get(f"{SERVER_URL}/api/games").json()
     for g in games:
         typer.echo(f"{g['id']}: {g['name']} (v{g['version']})")
 
@@ -49,23 +39,20 @@ def list():
 @app.command()
 def installed():
     """List installed games."""
-    games = fetch_games()
-    installed_ids = get_installed_games()
+    installed = get_installed_games()
 
-    if not installed_ids:
+    if not installed:
         typer.echo("No games installed.")
         return
 
-    for g in games:
-        if g["id"] in installed_ids:
-            typer.echo(f"{g['id']}: {g['name']} (v{g['version']})")
+    for g in installed:
+        typer.echo(f"{g['id']}: {g['name']} (v{g['version']})")
 
 
 @app.command()
 def steamlink(game_id: str):
     """Add a game to the steam library"""
-    games = fetch_games()
-    game = next((g for g in games if g["id"] == game_id), None)
+    game = requests.get(f"{SERVER_URL}/api/games/{game_id}").json()
     if not game:
         typer.echo(f"Game {game_id} not found.")
         raise typer.Exit(code=1)
@@ -80,8 +67,7 @@ def steamlink(game_id: str):
 @app.command()
 def install(game_id: str):
     """Download a game using its JSON config"""
-    games = fetch_games()
-    game = next((g for g in games if g["id"] == game_id), None)
+    game = requests.get(f"{SERVER_URL}/api/games/{game_id}").json()
     if not game:
         typer.echo(f"Game {game_id} not found.")
         raise typer.Exit(code=1)
@@ -124,8 +110,7 @@ def install(game_id: str):
 @app.command()
 def run(game_id: str):
     """Run a downloaded game based on JSON config."""
-    games = fetch_games()
-    game = next((g for g in games if g["id"] == game_id), None)
+    game = requests.get(f"{SERVER_URL}/api/games/{game_id}").json()
     if not game:
         typer.echo(f"Game {game_id} not found.")
         raise typer.Exit(code=1)
