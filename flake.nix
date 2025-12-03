@@ -11,8 +11,8 @@
     pkgs = import nixpkgs { inherit system; };
     python = pkgs.python3;
     pythonPackages = pkgs.python3Packages;
-  in {
-    packages.${system}.default = pythonPackages.buildPythonPackage {
+
+    ldbgames-package = pythonPackages.buildPythonPackage {
       pname = "ldbgames";
       version = "0.1.0";
       src = ./.;
@@ -39,10 +39,13 @@
           --prefix PATH : ${pkgs.aria2}/bin
       '';
     };
-
-    apps.${system}.default = {
-      type = "app";
-      program = "${self.packages.${system}.default}/bin/ldbgames";
+  in {
+    devShell.${system} = pkgs.mkShell {
+      buildInputs = [
+        ldbgames-package
+      ];
     };
+
+    nixosModules.ldbgames = { config, lib, pkgs, ...}: import ./ldbgames.nix { inherit config lib pkgs ldbgames-package; };
   };
 }
