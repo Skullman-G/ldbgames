@@ -7,6 +7,8 @@ import psutil
 import subprocess
 import sys
 import typer
+from ldbgames import SERVER_URL, LOCAL_DIR
+import json
 
 def close_steam():
     """Check if Steam is running, and close it if so."""
@@ -26,16 +28,16 @@ def close_steam():
             continue
     return False
 
-def generate_shortcut_appid(exe_path: str, shortcut_name: str) -> int:
+def generate_shortcut_appid(exe_path: Path, shortcut_name: str) -> int:
     """
     Generate the Steam AppID for a non-Steam shortcut.
     
-    :param exe_path: The target executable path (string).
-    :param shortcut_name: The shortcut name (string).
-    :return: The calculated AppID (int).
+    :param exe_path: The target executable path.
+    :param shortcut_name: The shortcut name.
+    :return: The calculated AppID.
     """
     # Step 1: Concatenate
-    data = exe_path + shortcut_name
+    data = f"{exe_path}{shortcut_name}"
 
     # Step 2: CRC32 hash
     crc = zlib.crc32(data.encode('utf-8')) & 0xFFFFFFFF
@@ -69,22 +71,22 @@ def get_config_dir() -> Path:
     raise FileNotFoundError("Could not find Steam config directory")
 
 
-def create_images(appid: int, hero: str, header: str, grid: str, icon: str, logo: str):
+def create_images(appid: int, game_id: str):
     """Download and save game images to the specified directory."""
     game_dir = get_config_dir() / "grid"
     game_dir.mkdir(parents=True, exist_ok=True)
 
     images = {
-        f"{appid}_hero.jpg": hero,
-        f"{appid}.jpg": header,
-        f"{appid}p.png": grid,
-        f"{appid}_icon.jpg": icon,
-        f"{appid}_logo.png": logo
+        f"{appid}_hero.jpg": "hero",
+        f"{appid}.jpg": "header",
+        f"{appid}p.png": "grid",
+        f"{appid}_icon.jpg": "icon",
+        f"{appid}_logo.png": "logo"
     }
 
-    for filename, url in images.items():
-        if url:
-            response = requests.get(url)
+    for filename, id in images.items():
+        url = f"{SERVER_URL}/api/games/{game_id}/img/{id}"
+        with requests.get(url) as response:
             if response.status_code == 200:
                 with open(game_dir / filename, "wb") as f:
                     f.write(response.content)
@@ -93,36 +95,56 @@ def create_images(appid: int, hero: str, header: str, grid: str, icon: str, logo
                 typer.echo(f"Failed to download {filename} from {url}")
 
 
-def get_steam_shortcuts_file() -> Path:
-    """Return path to the Steam shortcuts.vdf file for the first user found."""
-    shortcuts_file = get_config_dir() / "shortcuts.vdf"
-    if shortcuts_file.exists():
-        return shortcuts_file
-    raise FileNotFoundError("Could not find Steam shortcuts.vdf")
+def get_data_from_info_file(game_id: str) -> dict:
+    info_file = LOCAL_DIR / (f"{game_id}.json")
+    if not info_file.exists():
+        with open(info_file, "w") as f:
+            json.dump({"appid": ""}, f)
+
+    with open(info_file, "r") as f:
+            data = json.load(f)
+            return data
+    
+
+def save_data_to_info_file(game_id: str, data: dict):
+    info_file = LOCAL_DIR / (f"{game_id}.json")
+    with open(info_file, "w") as f:
+        json.dump(data, f)
 
 
-def add_shortcut(name: str, exe_path: str, args: str = "", start_dir: str = "", img: dict = None):
+def add_shortcut(game_id: str, name: str, exe_path: Path, args: str = "", start_dir: str = ""):
     steam_was_running = close_steam()
 
-    vdf_path = get_steam_shortcuts_file()
+    vdf_path = get_config_dir() / "shortcuts.vdf"
 
-    with open(vdf_path, "rb") as f:
-        data = vdf.binary_load(f)
+    if not vdf_path.exists():
+        typer.echo("Steam shortcuts.vdf file not found. Creating new one.")
+        data = {"shortcuts": {}}
+    else:
+        with open(vdf_path, "rb") as f:
+            data = vdf.binary_load(f)
 
     shortcuts = data.get("shortcuts", {})
 
-    to_remove = [k for k, v in shortcuts.items() if v.get("exe") == exe_path]
-    for k in to_remove:
-        shortcuts.pop(k)
+    info_data = get_data_from_info_file(game_id)
+    appid = info_data.get("appid")
+    if appid == "":
+        appid = str(generate_shortcut_appid(exe_path, name))
 
-    appid = generate_shortcut_appid(exe_path, name)
+    print(shortcuts)
 
     idx = str(len(shortcuts))
+
+    for id, shortcut in shortcuts.items():
+        if shortcut.get("appid") == appid or shortcut.get("AppName") == name:
+            idx = id
+
     shortcuts[idx] = {
-        "appid": str(appid),
-        "appname": name,
-        "exe": exe_path,
+        "appid": appid,
+        "AppName": name,
+        "Exe": str(exe_path),
         "StartDir": start_dir or os.path.dirname(exe_path),
+        "Icon": str(get_config_dir() / (f"grid/{appid}_icon.jpg")),
         "LaunchOptions": args,
         "ShortcutPath": "",
         "IsHidden": "0",
@@ -133,20 +155,16 @@ def add_shortcut(name: str, exe_path: str, args: str = "", start_dir: str = "", 
         "tags": {}
     }
 
+    print(shortcuts)
+
     data["shortcuts"] = shortcuts
 
     with open(vdf_path, "wb") as f:
         vdf.binary_dump(data, f)
 
-    if img:
-        create_images(
-            appid=appid,
-            hero=img.get("hero", None),
-            header=img.get("header", None),
-            grid=img.get("grid", None),
-            icon=img.get("icon", None),
-            logo=img.get("logo", None)
-        )
+    save_data_to_info_file(game_id, {"appid": appid})
+
+    create_images(appid, game_id)
 
     typer.echo("Shortcut added to Steam successfully!")
 
@@ -157,4 +175,4 @@ def add_shortcut(name: str, exe_path: str, args: str = "", start_dir: str = "", 
         elif sys.platform == "darwin":  # macOS
             subprocess.Popen(["open", "-a", "Steam"])
         else:  # Linux
-            subprocess.Popen(["steam"])
+            os.system("xdg-open steam://")

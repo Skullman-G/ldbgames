@@ -7,14 +7,11 @@ from ldbgames.shortcuts import add_shortcut
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 import threading
+from ldbgames import SERVER_URL, LOCAL_DIR
 
 app = typer.Typer()
 
 pbar_lock = threading.Lock()
-
-SERVER_URL = "http://ldbgames.com"
-LOCAL_DIR = os.path.expanduser("~/.local/share/ldbgames")
-os.makedirs(LOCAL_DIR, exist_ok=True)
 
 
 def get_installed_games():
@@ -24,8 +21,8 @@ def get_installed_games():
         return installed
 
     for entry in os.listdir(LOCAL_DIR):
-        game_path = os.path.join(LOCAL_DIR, entry)
-        if os.path.isdir(game_path):
+        game_path = LOCAL_DIR / entry
+        if game_path.is_dir():
             game = requests.get(f"{SERVER_URL}/api/games/{entry}").json()
             if not game:
                 installed.append(game)
@@ -62,9 +59,9 @@ def steamlink(game_id: str):
         raise typer.Exit(code=1)
     
     add_shortcut(
+        game_id=game_id,
         name=game["name"],
-        exe_path=os.path.join(LOCAL_DIR, game_id, game["binary"]),
-        img=game.get("img", None)
+        exe_path=LOCAL_DIR / game_id / game["binary"]
     )
 
 
@@ -78,6 +75,7 @@ def download_chunk(url: str, start: int, end: int, part_path: Path, pbar: tqdm, 
                     f.write(chunk)
                     with pbar_lock:
                         pbar.update(len(chunk))
+
 
 def parallel_download(url: str, dest: str, game_id: str, num_threads: int = 8):
     dest_path = Path(dest)
@@ -131,13 +129,13 @@ def install(game_id: str):
         raise typer.Exit(code=1)
 
     url = f"{SERVER_URL}/api/games/{game_id}/download"
-    archive_path = os.path.join(LOCAL_DIR, f"{game_id}.tar.gz")
+    archive_path = LOCAL_DIR / f"{game_id}.tar.gz"
 
     # --- Download with progress bar ---
     parallel_download(url, archive_path, game_id)
 
     # --- Extract with progress bar ---
-    extract_path = os.path.join(LOCAL_DIR, game_id)
+    extract_path = LOCAL_DIR / game_id
     with tarfile.open(archive_path) as tar:
         members = tar.getmembers()
         with tqdm(
@@ -154,9 +152,9 @@ def install(game_id: str):
     typer.echo(f"{game_id} installed successfully!")
 
     add_shortcut(
+        game_id=game_id,
         name=game["name"],
-        exe_path=os.path.join(LOCAL_DIR, game_id, game["binary"]),
-        img=game.get("img", None)
+        exe_path=LOCAL_DIR / game_id / game["binary"]
     )
 
 
@@ -168,10 +166,10 @@ def run(game_id: str):
         typer.echo(f"Game {game_id} not found.")
         raise typer.Exit(code=1)
 
-    game_path = os.path.join(LOCAL_DIR, game_id)
+    game_path = LOCAL_DIR / game_id
     binary_path = os.path.join(game_path, game["binary"])
     if not os.path.exists(binary_path):
-        typer.echo(f"No executable found for {game_id}. Run `install {game_id}` first.")
+        typer.echo(f"No executable found for {game_id}. Run `ldbgames install {game_id}` first.")
         raise typer.Exit(code=1)
 
     os.execv(binary_path, [binary_path])
