@@ -20,8 +20,6 @@
       buildInputs = [
         python
         pythonPackages.setuptools
-        pkgs.aria2
-        pkgs.makeWrapper
       ];
 
       propagatedBuildInputs = with pythonPackages; [
@@ -33,11 +31,6 @@
       ];
 
       pyproject = true;
-
-      postInstall = ''
-        wrapProgram $out/bin/ldbgames \
-          --prefix PATH : ${pkgs.aria2}/bin
-      '';
     };
   in {
     devShell.${system} = pkgs.mkShell {

@@ -6,19 +6,20 @@ import zlib
 import psutil
 import subprocess
 import sys
+import typer
 
 def close_steam():
     """Check if Steam is running, and close it if so."""
     for proc in psutil.process_iter(attrs=["pid", "name"]):
         try:
             if "steam" in proc.info["name"].lower():
-                print("Steam is running. Attempting to close it...")
+                typer.echo("Steam is running. Attempting to close it...")
                 proc.terminate()
                 try:
                     proc.wait(timeout=20)
-                    print("Steam closed successfully.")
+                    typer.echo("Steam closed successfully.")
                 except psutil.TimeoutExpired:
-                    print("Steam did not close gracefully. Forcing kill...")
+                    typer.echo("Steam did not close gracefully. Forcing kill...")
                     proc.kill()
                 return True
         except (psutil.NoSuchProcess, psutil.AccessDenied):
@@ -87,9 +88,9 @@ def create_images(appid: int, hero: str, header: str, grid: str, icon: str, logo
             if response.status_code == 200:
                 with open(game_dir / filename, "wb") as f:
                     f.write(response.content)
-                print(f"Downloaded {filename}")
+                typer.echo(f"Downloaded {filename}")
             else:
-                print(f"Failed to download {filename} from {url}")
+                typer.echo(f"Failed to download {filename} from {url}")
 
 
 def get_steam_shortcuts_file() -> Path:
@@ -147,10 +148,10 @@ def add_shortcut(name: str, exe_path: str, args: str = "", start_dir: str = "", 
             logo=img.get("logo", None)
         )
 
-    print("Shortcut added to Steam successfully!")
+    typer.echo("Shortcut added to Steam successfully!")
 
     if steam_was_running:
-        print("Restarting Steam...")
+        typer.echo("Restarting Steam...")
         if os.name == "nt":  # Windows
             subprocess.Popen([r"C:\Program Files (x86)\Steam\Steam.exe"])
         elif sys.platform == "darwin":  # macOS
