@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ldbgames-package, ... }:
+{ config, lib, pkgs, ... }:
 let
   cfg = config.programs.ldbgames;
 in
@@ -13,8 +13,8 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    environment.systemPackages = [
-      ldbgames-package
+    home.packages = with pkgs; [
+      ldbgames
     ];
 
     networking.extraHosts = ''
