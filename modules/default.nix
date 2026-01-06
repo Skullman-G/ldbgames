@@ -1,6 +1,5 @@
 {
   imports = [
     ./ldbgames.nix
-    ./emulators
   ]
 }

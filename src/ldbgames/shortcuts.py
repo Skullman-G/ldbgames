@@ -7,7 +7,7 @@ import psutil
 import subprocess
 import sys
 import typer
-from ldbgames import SERVER_URL, LOCAL_DIR
+from ldbgames import SERVER_URL, GAMES_DIR
 import json
 
 def close_steam():
@@ -96,7 +96,7 @@ def create_images(appid: int, game_id: str):
 
 
 def get_data_from_info_file(game_id: str) -> dict:
-    info_file = LOCAL_DIR / (f"{game_id}.json")
+    info_file = GAMES_DIR / (f"{game_id}.json")
     if not info_file.exists():
         with open(info_file, "w") as f:
             json.dump({"appid": ""}, f)
@@ -107,7 +107,7 @@ def get_data_from_info_file(game_id: str) -> dict:
     
 
 def save_data_to_info_file(game_id: str, data: dict):
-    info_file = LOCAL_DIR / (f"{game_id}.json")
+    info_file = GAMES_DIR / (f"{game_id}.json")
     with open(info_file, "w") as f:
         json.dump(data, f)
 

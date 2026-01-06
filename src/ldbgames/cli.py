@@ -7,7 +7,7 @@ from ldbgames.shortcuts import add_shortcut
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 import threading
-from ldbgames import SERVER_URL, LOCAL_DIR
+from ldbgames import SERVER_URL, GAMES_DIR
 
 app = typer.Typer()
 
@@ -15,13 +15,13 @@ pbar_lock = threading.Lock()
 
 
 def get_installed_games():
-    """Return a list of installed game IDs (directories in LOCAL_DIR)."""
+    """Return a list of installed game IDs"""
     installed = []
-    if not os.path.exists(LOCAL_DIR):
+    if not os.path.exists(GAMES_DIR):
         return installed
 
-    for entry in os.listdir(LOCAL_DIR):
-        game_path = LOCAL_DIR / entry
+    for entry in os.listdir(GAMES_DIR):
+        game_path = GAMES_DIR / entry
         if game_path.is_dir():
             game = requests.get(f"{SERVER_URL}/api/games/{entry}").json()
             if not game:
@@ -61,7 +61,7 @@ def steamlink(game_id: str):
     add_shortcut(
         game_id=game_id,
         name=game["name"],
-        exe_path=LOCAL_DIR / game_id / game["binary"]
+        exe_path=GAMES_DIR / game_id / game["binary"]
     )
 
 
@@ -129,13 +129,13 @@ def install(game_id: str):
         raise typer.Exit(code=1)
 
     url = f"{SERVER_URL}/api/games/{game_id}/download"
-    archive_path = LOCAL_DIR / f"{game_id}.tar.gz"
+    archive_path = GAMES_DIR / f"{game_id}.tar.gz"
 
     # --- Download with progress bar ---
     parallel_download(url, archive_path, game_id)
 
     # --- Extract with progress bar ---
-    extract_path = LOCAL_DIR / game_id
+    extract_path = GAMES_DIR / game_id
     with tarfile.open(archive_path) as tar:
         members = tar.getmembers()
         with tqdm(
@@ -154,7 +154,7 @@ def install(game_id: str):
     add_shortcut(
         game_id=game_id,
         name=game["name"],
-        exe_path=LOCAL_DIR / game_id / game["binary"]
+        exe_path=GAMES_DIR / game_id / game["binary"]
     )
 
 
@@ -166,7 +166,7 @@ def run(game_id: str):
         typer.echo(f"Game {game_id} not found.")
         raise typer.Exit(code=1)
 
-    game_path = LOCAL_DIR / game_id
+    game_path = GAMES_DIR / game_id
     binary_path = os.path.join(game_path, game["binary"])
     if not os.path.exists(binary_path):
         typer.echo(f"No executable found for {game_id}. Run `ldbgames install {game_id}` first.")
