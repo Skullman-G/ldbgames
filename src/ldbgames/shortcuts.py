@@ -7,7 +7,7 @@ import psutil
 import subprocess
 import sys
 import typer
-from ldbgames import SERVER_URL, GAMES_DIR
+from ldbgames.settings import SERVER_URL, GAMES_DIR
 import json
 
 def close_steam():
@@ -85,7 +85,7 @@ def create_images(appid: int, game_id: str):
     }
 
     for filename, id in images.items():
-        url = f"{SERVER_URL}/api/games/{game_id}/img/{id}"
+        url = f"{SERVER_URL.value}/api/games/{game_id}/img/{id}"
         with requests.get(url) as response:
             if response.status_code == 200:
                 with open(game_dir / filename, "wb") as f:
@@ -96,7 +96,7 @@ def create_images(appid: int, game_id: str):
 
 
 def get_data_from_info_file(game_id: str) -> dict:
-    info_file = GAMES_DIR / (f"{game_id}.json")
+    info_file = GAMES_DIR.value / (f"{game_id}.json")
     if not info_file.exists():
         with open(info_file, "w") as f:
             json.dump({"appid": ""}, f)
@@ -107,7 +107,7 @@ def get_data_from_info_file(game_id: str) -> dict:
     
 
 def save_data_to_info_file(game_id: str, data: dict):
-    info_file = GAMES_DIR / (f"{game_id}.json")
+    info_file = GAMES_DIR.value / (f"{game_id}.json")
     with open(info_file, "w") as f:
         json.dump(data, f)
 

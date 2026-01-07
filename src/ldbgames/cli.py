@@ -7,23 +7,25 @@ from ldbgames.shortcuts import add_shortcut
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 import threading
-from ldbgames import SERVER_URL, GAMES_DIR
+from ldbgames.settings import load_settings, GAMES_DIR, SERVER_URL
 
 app = typer.Typer()
 
 pbar_lock = threading.Lock()
 
+load_settings()
+
 
 def get_installed_games():
     """Return a list of installed game IDs"""
     installed = []
-    if not os.path.exists(GAMES_DIR):
+    if not GAMES_DIR.value.exists():
         return installed
 
-    for entry in os.listdir(GAMES_DIR):
-        game_path = GAMES_DIR / entry
+    for entry in GAMES_DIR.value.iterdir():
+        game_path = GAMES_DIR.value / entry
         if game_path.is_dir():
-            game = requests.get(f"{SERVER_URL}/api/games/{entry}").json()
+            game = requests.get(f"{SERVER_URL.value}/api/games/{entry}").json()
             if not game:
                 installed.append(game)
     return installed
@@ -32,7 +34,7 @@ def get_installed_games():
 @app.command()
 def list():
     """List available games on the server."""
-    games = requests.get(f"{SERVER_URL}/api/games").json()
+    games = requests.get(f"{SERVER_URL.value}/api/games").json()
     for g in games:
         typer.echo(f"{g['id']}: {g['name']} (v{g['version']})")
 
@@ -53,7 +55,7 @@ def installed():
 @app.command()
 def steamlink(game_id: str):
     """Add a game to the steam library"""
-    game = requests.get(f"{SERVER_URL}/api/games/{game_id}").json()
+    game = requests.get(f"{SERVER_URL.value}/api/games/{game_id}").json()
     if not game:
         typer.echo(f"Game {game_id} not found.")
         raise typer.Exit(code=1)
@@ -61,7 +63,7 @@ def steamlink(game_id: str):
     add_shortcut(
         game_id=game_id,
         name=game["name"],
-        exe_path=GAMES_DIR / game_id / game["binary"]
+        exe_path=GAMES_DIR.value / game_id / game["binary"]
     )
 
 
@@ -123,19 +125,19 @@ def parallel_download(url: str, dest: str, game_id: str, num_threads: int = 8):
 @app.command()
 def install(game_id: str):
     """Download a game using its JSON config"""
-    game = requests.get(f"{SERVER_URL}/api/games/{game_id}").json()
+    game = requests.get(f"{SERVER_URL.value}/api/games/{game_id}").json()
     if not game:
         typer.echo(f"Game {game_id} not found.")
         raise typer.Exit(code=1)
 
-    url = f"{SERVER_URL}/api/games/{game_id}/download"
-    archive_path = GAMES_DIR / f"{game_id}.tar.gz"
+    url = f"{SERVER_URL.value}/api/games/{game_id}/download"
+    archive_path = GAMES_DIR.value / f"{game_id}.tar.gz"
 
     # --- Download with progress bar ---
     parallel_download(url, archive_path, game_id)
 
     # --- Extract with progress bar ---
-    extract_path = GAMES_DIR / game_id
+    extract_path = GAMES_DIR.value / game_id
     with tarfile.open(archive_path) as tar:
         members = tar.getmembers()
         with tqdm(
@@ -154,19 +156,19 @@ def install(game_id: str):
     add_shortcut(
         game_id=game_id,
         name=game["name"],
-        exe_path=GAMES_DIR / game_id / game["binary"]
+        exe_path=GAMES_DIR.value / game_id / game["binary"]
     )
 
 
 @app.command()
 def run(game_id: str):
     """Run a downloaded game based on JSON config."""
-    game = requests.get(f"{SERVER_URL}/api/games/{game_id}").json()
+    game = requests.get(f"{SERVER_URL.value}/api/games/{game_id}").json()
     if not game:
         typer.echo(f"Game {game_id} not found.")
         raise typer.Exit(code=1)
 
-    game_path = GAMES_DIR / game_id
+    game_path = GAMES_DIR.value / game_id
     binary_path = os.path.join(game_path, game["binary"])
     if not os.path.exists(binary_path):
         typer.echo(f"No executable found for {game_id}. Run `ldbgames install {game_id}` first.")
