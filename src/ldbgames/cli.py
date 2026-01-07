@@ -8,6 +8,8 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 import threading
 from ldbgames.settings import load_settings, GAMES_DIR, SERVER_URL
+import ldbgames.requests as req
+import ldbgames.installed as inst
 
 app = typer.Typer()
 
@@ -16,46 +18,37 @@ pbar_lock = threading.Lock()
 load_settings()
 
 
-def get_installed_games():
-    """Return a list of installed game IDs"""
-    installed = []
-    if not GAMES_DIR.value.exists():
-        return installed
-
-    for entry in GAMES_DIR.value.iterdir():
-        game_path = GAMES_DIR.value / entry
-        if game_path.is_dir():
-            game = requests.get(f"{SERVER_URL.value}/api/games/{entry}").json()
-            if not game:
-                installed.append(game)
-    return installed
-
-
 @app.command()
 def list():
     """List available games on the server."""
-    games = requests.get(f"{SERVER_URL.value}/api/games").json()
-    for g in games:
-        typer.echo(f"{g['id']}: {g['name']} (v{g['version']})")
+    games = req.get_game_infos()
+    if not games:
+        typer.echo("No games available from server.")
+    else:
+        for g in games:
+            typer.echo(f"{g['id']}: {g['name']} (v{g['version']})")
 
 
 @app.command()
 def installed():
     """List installed games."""
-    installed = get_installed_games()
+    installed = inst.get_installed_games()
 
     if not installed:
         typer.echo("No games installed.")
         return
 
     for g in installed:
-        typer.echo(f"{g['id']}: {g['name']} (v{g['version']})")
+        id = g.get("id", "unknown")
+        name = g.get("name", "unknown")
+        version = g.get("version", -1)
+        typer.echo(f"{id}: {name} (v{version})")
 
 
 @app.command()
 def steamlink(game_id: str):
     """Add a game to the steam library"""
-    game = requests.get(f"{SERVER_URL.value}/api/games/{game_id}").json()
+    game = req.get_game_info(game_id)
     if not game:
         typer.echo(f"Game {game_id} not found.")
         raise typer.Exit(code=1)
@@ -125,7 +118,7 @@ def parallel_download(url: str, dest: str, game_id: str, num_threads: int = 8):
 @app.command()
 def install(game_id: str):
     """Download a game using its JSON config"""
-    game = requests.get(f"{SERVER_URL.value}/api/games/{game_id}").json()
+    game = req.get_game_info(game_id)
     if not game:
         typer.echo(f"Game {game_id} not found.")
         raise typer.Exit(code=1)
@@ -163,15 +156,21 @@ def install(game_id: str):
 @app.command()
 def run(game_id: str):
     """Run a downloaded game based on JSON config."""
-    game = requests.get(f"{SERVER_URL.value}/api/games/{game_id}").json()
+    game = req.get_game_info(game_id)
     if not game:
         typer.echo(f"Game {game_id} not found.")
         raise typer.Exit(code=1)
 
     game_path = GAMES_DIR.value / game_id
-    binary_path = os.path.join(game_path, game["binary"])
-    if not os.path.exists(binary_path):
+    binary_path = game_path / game["binary"]
+    if not binary_path.exists():
         typer.echo(f"No executable found for {game_id}. Run `ldbgames install {game_id}` first.")
         raise typer.Exit(code=1)
 
     os.execv(binary_path, [binary_path])
+
+
+@app.command()
+def cleanup():
+    """Fixup or add game info files based on installed games"""
+    inst.cleanup()

@@ -8,7 +8,7 @@ import subprocess
 import sys
 import typer
 from ldbgames.settings import SERVER_URL, GAMES_DIR
-import json
+import ldbgames.installed as installed
 
 def close_steam():
     """Check if Steam is running, and close it if so."""
@@ -95,23 +95,6 @@ def create_images(appid: int, game_id: str):
                 typer.echo(f"Failed to download {filename} from {url}")
 
 
-def get_data_from_info_file(game_id: str) -> dict:
-    info_file = GAMES_DIR.value / (f"{game_id}.json")
-    if not info_file.exists():
-        with open(info_file, "w") as f:
-            json.dump({"appid": ""}, f)
-
-    with open(info_file, "r") as f:
-            data = json.load(f)
-            return data
-    
-
-def save_data_to_info_file(game_id: str, data: dict):
-    info_file = GAMES_DIR.value / (f"{game_id}.json")
-    with open(info_file, "w") as f:
-        json.dump(data, f)
-
-
 def add_shortcut(game_id: str, name: str, exe_path: Path, args: str = "", start_dir: str = ""):
     steam_was_running = close_steam()
 
@@ -126,7 +109,7 @@ def add_shortcut(game_id: str, name: str, exe_path: Path, args: str = "", start_
 
     shortcuts = data.get("shortcuts", {})
 
-    info_data = get_data_from_info_file(game_id)
+    info_data = installed.get_data_from_info_file(game_id)
     appid = info_data.get("appid")
     if appid == "":
         appid = str(generate_shortcut_appid(exe_path, name))
@@ -162,7 +145,13 @@ def add_shortcut(game_id: str, name: str, exe_path: Path, args: str = "", start_
     with open(vdf_path, "wb") as f:
         vdf.binary_dump(data, f)
 
-    save_data_to_info_file(game_id, {"appid": appid})
+    installed.save_data_to_info_file(game_id,
+        {
+            "id": game_id,
+            "name": name,
+            "appid": appid
+        }
+    )
 
     create_images(appid, game_id)
 
